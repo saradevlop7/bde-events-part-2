@@ -14,6 +14,5 @@ Route::post('/events', [EventApiController::class, 'store']);
 Route::get('/admin/events/stats', [EventApiController::class, 'stats'])
     ->middleware(['auth:sanctum', 'isAdmin']);
 
-Route::get('/user/tickets', [TicketApiController::class, 'index'])
-    ->middleware('auth:sanctum');
+
 
