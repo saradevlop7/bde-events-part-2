@@ -1,19 +1,19 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\EventApiController;
+use App\Http\Controllers\Api\AuthApiController;
+use App\Http\Controllers\Api\BookingApiController;
+use App\Http\Controllers\Api\TicketApiController;
+Route::post('/events/{id}/book', [BookingApiController::class, 'book'])
+    ->middleware('auth:sanctum');
+Route::post('/login', [AuthApiController::class, 'login']);
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
-*/
+Route::post('/events', [EventApiController::class, 'store']);
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
+Route::get('/admin/events/stats', [EventApiController::class, 'stats'])
+    ->middleware(['auth:sanctum', 'isAdmin']);
+
+Route::get('/user/tickets', [TicketApiController::class, 'index'])
+    ->middleware('auth:sanctum');
+
