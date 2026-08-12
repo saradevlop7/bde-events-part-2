@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\EventApiController;
 use App\Http\Controllers\Api\AuthApiController;
 use App\Http\Controllers\Api\BookingApiController;
-use App\Http\Controllers\Api\TicketApiController;
+
 Route::post('/events/{id}/book', [BookingApiController::class, 'book'])
     ->middleware('auth:sanctum');
 Route::post('/login', [AuthApiController::class, 'login']);
