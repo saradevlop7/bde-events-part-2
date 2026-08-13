@@ -14,25 +14,37 @@ function DashboardAdmin() {
 
     const [eventsList, setEventsList] = useState([]);
     const [loading, setLoading] = useState(true);
+
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState(null);
 
-    // Form state (Zdt fih time)
     const [formData, setFormData] = useState({
         title: "",
         description: "",
         date: "",
-        time: "10:00", // Default time
+        time: "10:00",
         location: "",
         price: 0,
         max_capacity: 0,
     });
 
-    const user = JSON.parse(localStorage.getItem("user")) || {
-        name: "Admin",
+    const user =
+        JSON.parse(localStorage.getItem("user")) || {
+            name: "Admin",
+        };
+
+    // =========================
+    // LOGOUT
+    // =========================
+    const logout = () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        navigate("/login");
     };
 
-    // Fetch Data
+    // =========================
+    // FETCH DATA
+    // =========================
     const fetchData = async () => {
         const token = localStorage.getItem("token");
 
@@ -45,10 +57,24 @@ function DashboardAdmin() {
             setLoading(true);
 
             const [statsRes, eventsRes] = await Promise.all([
-                api.get("/admin/events/stats", { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
-                api.get("/events", { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
+                api
+                    .get("/admin/events/stats", {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    })
+                    .catch(() => null),
+
+                api
+                    .get("/events", {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    })
+                    .catch(() => null),
             ]);
 
+            // Stats
             if (statsRes?.data) {
                 setStats({
                     events: statsRes.data.events || 0,
@@ -58,13 +84,19 @@ function DashboardAdmin() {
                 });
             }
 
+            // Events
             if (eventsRes?.data) {
-                const list = Array.isArray(eventsRes.data) ? eventsRes.data : eventsRes.data.events || [];
+                const list = Array.isArray(eventsRes.data)
+                    ? eventsRes.data
+                    : eventsRes.data.events ||
+                      eventsRes.data.data ||
+                      [];
+
                 setEventsList(list);
             }
-
         } catch (error) {
             console.error("Erreur API:", error);
+
             if (error.response?.status === 401) {
                 logout();
             }
@@ -75,27 +107,26 @@ function DashboardAdmin() {
 
     useEffect(() => {
         fetchData();
-    }, [navigate]);
+    }, []);
 
-    // Logout
-    const logout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        navigate("/login");
-    };
-
-    // Input Change
+    // =========================
+    // INPUT CHANGE
+    // =========================
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData({
-            ...formData,
+
+        setFormData((prev) => ({
+            ...prev,
             [name]: value,
-        });
+        }));
     };
 
-    // Open Form to Add
+    // =========================
+    // AJOUTER
+    // =========================
     const openAddForm = () => {
         setEditingId(null);
+
         setFormData({
             title: "",
             description: "",
@@ -103,93 +134,219 @@ function DashboardAdmin() {
             time: "10:00",
             location: "",
             price: 0,
-            max_capacity: 0
+            max_capacity: 0,
         });
+
         setShowForm(true);
+
+        setTimeout(() => {
+            window.scrollTo({
+                top: 450,
+                behavior: "smooth",
+            });
+        }, 100);
     };
 
-    // Open Form to Edit
+    // =========================
+    // MODIFIER
+    // =========================
     const handleEdit = (eventItem) => {
         setEditingId(eventItem.id);
 
+        const rawDate =
+            eventItem.date ||
+            eventItem.event_date ||
+            "";
+
         let formattedDate = "";
-        if (eventItem.date || eventItem.event_date) {
-            const rawDate = eventItem.date || eventItem.event_date;
-            formattedDate = new Date(rawDate).toISOString().split('T')[0];
+
+        if (rawDate) {
+            formattedDate = rawDate.includes("T")
+                ? rawDate.split("T")[0]
+                : rawDate.split(" ")[0];
         }
 
         setFormData({
             title: eventItem.title || "",
             description: eventItem.description || "",
             date: formattedDate,
-            time: eventItem.time || eventItem.event_time || "10:00",
+            time:
+                eventItem.time ||
+                eventItem.event_time ||
+                "10:00",
             location: eventItem.location || "",
-            price: eventItem.price || 0,
-            max_capacity: eventItem.max_capacity || eventItem.capacity || 0,
+            price: eventItem.price ?? 0,
+            max_capacity:
+                eventItem.max_capacity ??
+                eventItem.capacity ??
+                0,
         });
+
         setShowForm(true);
-        window.scrollTo({ top: 400, behavior: "smooth" });
+
+        setTimeout(() => {
+            window.scrollTo({
+                top: 450,
+                behavior: "smooth",
+            });
+        }, 100);
     };
 
-    // Submit Form (Create OR Update)
+    // =========================
+    // SUBMIT
+    // AJOUT OU MODIFICATION
+    // =========================
     const handleSubmit = async (e) => {
         e.preventDefault();
+
         const token = localStorage.getItem("token");
 
-        // Payload kayhze klllshi yqder y-requirih backend
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
         const payload = {
             title: formData.title,
             description: formData.description,
             date: formData.date,
             event_date: formData.date,
-            time: formData.time,          // REQUIRED BY BACKEND
-            event_time: formData.time,    // Double safety
+            time: formData.time,
+            event_time: formData.time,
             location: formData.location,
             price: Number(formData.price),
-            max_capacity: Number(formData.max_capacity),
-            capacity: Number(formData.max_capacity)
+            max_capacity: Number(
+                formData.max_capacity
+            ),
+            capacity: Number(
+                formData.max_capacity
+            ),
         };
 
         try {
+            // =========================
+            // MODIFICATION
+            // =========================
             if (editingId) {
-                // MODIFIER (PUT)
-                await api.put(`/events/${editingId}`, payload, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                alert("🎉 Événement modifié avec succès !");
-            } else {
-                // AJOUTER (POST)
-                await api.post("/events", payload, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                alert("🎉 Événement créé avec succès !");
+                await api.put(
+                    `/events/${editingId}`,
+                    payload,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
+
+                alert(
+                    "✅ Événement modifié avec succès !"
+                );
             }
 
+            // =========================
+            // AJOUT
+            // =========================
+            else {
+                await api.post(
+                    "/events",
+                    payload,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
+
+                alert(
+                    "✅ Événement créé avec succès !"
+                );
+            }
+
+            // Reset
             setShowForm(false);
             setEditingId(null);
-            fetchData(); // Refresh list & stats
+
+            setFormData({
+                title: "",
+                description: "",
+                date: "",
+                time: "10:00",
+                location: "",
+                price: 0,
+                max_capacity: 0,
+            });
+
+            // Refresh
+            await fetchData();
         } catch (error) {
-            console.error("Erreur lors de l'enregistrement:", error.response?.data || error.message);
-            const errDetail = error.response?.data?.message || JSON.stringify(error.response?.data) || "Une erreur s'est produite";
-            alert("❌ Erreur: " + errDetail);
+            console.error(
+                "Erreur:",
+                error.response?.data || error
+            );
+
+            alert(
+                error.response?.data?.message ||
+                    "❌ Une erreur est survenue."
+            );
         }
     };
 
-    // Delete Event
+    // =========================
+    // SUPPRIMER
+    // =========================
     const handleDelete = async (id) => {
-        if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet événement ?")) return;
+        const confirmation = window.confirm(
+            "Êtes-vous sûr de vouloir supprimer cet événement ?"
+        );
+
+        if (!confirmation) return;
 
         const token = localStorage.getItem("token");
+
         try {
-            await api.delete(`/events/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            alert("🗑️ Événement supprimé !");
-            fetchData();
+            await api.delete(
+                `/events/${id}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            alert(
+                "🗑️ Événement supprimé avec succès !"
+            );
+
+            await fetchData();
         } catch (error) {
-            console.error("Erreur suppression:", error);
-            alert("Erreur lors de la suppression.");
+            console.error(
+                "Erreur suppression:",
+                error.response?.data || error
+            );
+
+            alert(
+                error.response?.data?.message ||
+                    "❌ Erreur lors de la suppression."
+            );
         }
+    };
+
+    // =========================
+    // CANCEL FORM
+    // =========================
+    const closeForm = () => {
+        setShowForm(false);
+        setEditingId(null);
+
+        setFormData({
+            title: "",
+            description: "",
+            date: "",
+            time: "10:00",
+            location: "",
+            price: 0,
+            max_capacity: 0,
+        });
     };
 
     return (
@@ -211,6 +368,7 @@ function DashboardAdmin() {
                     background: #eff6ff;
                 }
 
+                /* SIDEBAR */
                 .admin-sidebar {
                     width: 250px;
                     min-height: 100vh;
@@ -280,12 +438,14 @@ function DashboardAdmin() {
                     cursor: pointer;
                 }
 
+                /* CONTENT */
                 .admin-content {
                     margin-left: 250px;
                     width: calc(100% - 250px);
                     padding: 50px;
                 }
 
+                /* WELCOME */
                 .welcome-card {
                     background: white;
                     border-radius: 20px;
@@ -306,6 +466,7 @@ function DashboardAdmin() {
                     font-size: 17px;
                 }
 
+                /* STATS */
                 .stats-grid {
                     display: grid;
                     grid-template-columns: repeat(4, 1fr);
@@ -338,6 +499,7 @@ function DashboardAdmin() {
                     font-weight: 700;
                 }
 
+                /* ACTIONS */
                 .actions {
                     margin-top: 30px;
                     display: grid;
@@ -357,6 +519,10 @@ function DashboardAdmin() {
                     color: #2563eb;
                 }
 
+                .action-card p {
+                    color: #555;
+                }
+
                 .action-card button {
                     border: none;
                     background: #3b82f6;
@@ -372,38 +538,96 @@ function DashboardAdmin() {
                     background: #2563eb;
                 }
 
+                /* FORM */
                 .form-container {
                     background: white;
                     border-radius: 18px;
-                    padding: 25px;
+                    padding: 30px;
                     margin-top: 30px;
                     box-shadow: 0 8px 25px rgba(0,0,0,0.06);
                 }
 
+                .form-container h2 {
+                    color: #2563eb;
+                    margin-top: 0;
+                    margin-bottom: 25px;
+                }
+
                 .form-group {
-                    margin-bottom: 15px;
+                    margin-bottom: 18px;
                 }
 
                 .form-group label {
                     display: block;
-                    margin-bottom: 5px;
+                    margin-bottom: 7px;
                     color: #444;
                     font-weight: 600;
                 }
 
-                .form-group input, .form-group textarea {
+                .form-group input,
+                .form-group textarea {
                     width: 100%;
-                    padding: 10px;
-                    border: 1px solid #ddd;
+                    padding: 12px;
+                    border: 1px solid #d1d5db;
                     border-radius: 8px;
+                    font-size: 15px;
+                    outline: none;
                 }
 
+                .form-group input:focus,
+                .form-group textarea:focus {
+                    border-color: #2563eb;
+                    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+                }
+
+                .form-buttons {
+                    display: flex;
+                    gap: 10px;
+                    margin-top: 25px;
+                }
+
+                .btn-submit {
+                    background: #2563eb;
+                    color: white;
+                    padding: 12px 22px;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: 600;
+                }
+
+                .btn-submit:hover {
+                    background: #1d4ed8;
+                }
+
+                .btn-cancel {
+                    background: #6b7280;
+                    color: white;
+                    padding: 12px 22px;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: 600;
+                }
+
+                .btn-cancel:hover {
+                    background: #4b5563;
+                }
+
+                /* TABLE */
                 .table-container {
                     background: white;
                     border-radius: 18px;
                     padding: 25px;
                     margin-top: 30px;
                     box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+                    overflow-x: auto;
+                }
+
+                .table-container h2 {
+                    color: #2563eb;
+                    margin-top: 0;
+                    margin-bottom: 20px;
                 }
 
                 table {
@@ -411,29 +635,52 @@ function DashboardAdmin() {
                     border-collapse: collapse;
                 }
 
-                th, td {
-                    padding: 12px;
+                th {
+                    background: #eff6ff;
+                    color: #2563eb;
+                    font-weight: 700;
+                }
+
+                th,
+                td {
+                    padding: 14px;
                     text-align: left;
                     border-bottom: 1px solid #eee;
+                }
+
+                td {
+                    color: #555;
+                }
+
+                tr:hover {
+                    background: #f8fafc;
                 }
 
                 .btn-edit {
                     background: #f59e0b;
                     color: white;
                     border: none;
-                    padding: 6px 12px;
+                    padding: 7px 12px;
                     border-radius: 6px;
                     cursor: pointer;
-                    margin-right: 5px;
+                    margin-right: 6px;
+                }
+
+                .btn-edit:hover {
+                    background: #d97706;
                 }
 
                 .btn-delete {
                     background: #ef4444;
                     color: white;
                     border: none;
-                    padding: 6px 12px;
+                    padding: 7px 12px;
                     border-radius: 6px;
                     cursor: pointer;
+                }
+
+                .btn-delete:hover {
+                    background: #dc2626;
                 }
 
                 .loading {
@@ -443,6 +690,7 @@ function DashboardAdmin() {
                     font-size: 18px;
                 }
 
+                /* RESPONSIVE */
                 @media (max-width: 1000px) {
                     .stats-grid {
                         grid-template-columns: repeat(2, 1fr);
@@ -476,162 +724,539 @@ function DashboardAdmin() {
 
             <div className="admin-page">
 
+                {/* ================= SIDEBAR ================= */}
                 <aside className="admin-sidebar">
-                    <div className="logo-circle">🎓</div>
-                    <div className="logo-title">BDE Events</div>
+
+                    <div className="logo-circle">
+                        🎓
+                    </div>
+
+                    <div className="logo-title">
+                        BDE Events
+                    </div>
 
                     <div className="admin-menu">
-                        <button onClick={() => navigate("/admin/dashboard")}>
+
+                        <button
+                            onClick={() =>
+                                navigate("/admin/dashboard")
+                            }
+                        >
                             🏠 Dashboard
                         </button>
-                        <button onClick={openAddForm}>
+
+                        <button
+                            onClick={openAddForm}
+                        >
                             ➕ Ajouter événement
                         </button>
-                        <button onClick={() => document.getElementById("events-table")?.scrollIntoView({ behavior: "smooth" })}>
+
+                        <button
+                            onClick={() =>
+                                document
+                                    .getElementById(
+                                        "events-table"
+                                    )
+                                    ?.scrollIntoView({
+                                        behavior: "smooth",
+                                    })
+                            }
+                        >
                             📅 Événements
                         </button>
+
                         <button>
                             🎟️ Réservations
                         </button>
+
                     </div>
 
-                    <button className="logout-button" onClick={logout}>
+                    <button
+                        className="logout-button"
+                        onClick={logout}
+                    >
                         Déconnexion
                     </button>
+
                 </aside>
 
+                {/* ================= MAIN ================= */}
                 <main className="admin-content">
+
+                    {/* WELCOME */}
                     <div className="welcome-card">
-                        <h1>Bonjour {user.name} 👋</h1>
-                        <p>Gérez les événements et les réservations depuis votre espace administrateur.</p>
+
+                        <h1>
+                            Bonjour {user.name} 👋
+                        </h1>
+
+                        <p>
+                            Gérez les événements et les
+                            réservations depuis votre espace
+                            administrateur.
+                        </p>
+
                     </div>
 
+                    {/* STATS */}
                     {loading ? (
-                        <div className="loading">Chargement des données...</div>
+                        <div className="loading">
+                            Chargement des données...
+                        </div>
                     ) : (
                         <div className="stats-grid">
+
                             <div className="stat-card">
-                                <div className="stat-icon">📅</div>
-                                <h3>Événements</h3>
-                                <p className="stat-number">{stats.events}</p>
+                                <div className="stat-icon">
+                                    📅
+                                </div>
+
+                                <h3>
+                                    Événements
+                                </h3>
+
+                                <p className="stat-number">
+                                    {stats.events}
+                                </p>
                             </div>
+
                             <div className="stat-card">
-                                <div className="stat-icon">👥</div>
-                                <h3>Étudiants</h3>
-                                <p className="stat-number">{stats.students}</p>
+                                <div className="stat-icon">
+                                    👥
+                                </div>
+
+                                <h3>
+                                    Étudiants
+                                </h3>
+
+                                <p className="stat-number">
+                                    {stats.students}
+                                </p>
                             </div>
+
                             <div className="stat-card">
-                                <div className="stat-icon">🎟️</div>
-                                <h3>Réservations</h3>
-                                <p className="stat-number">{stats.bookings}</p>
+                                <div className="stat-icon">
+                                    🎟️
+                                </div>
+
+                                <h3>
+                                    Réservations
+                                </h3>
+
+                                <p className="stat-number">
+                                    {stats.bookings}
+                                </p>
                             </div>
+
                             <div className="stat-card">
-                                <div className="stat-icon">🎫</div>
-                                <h3>Tickets</h3>
-                                <p className="stat-number">{stats.tickets}</p>
+                                <div className="stat-icon">
+                                    🎫
+                                </div>
+
+                                <h3>
+                                    Tickets
+                                </h3>
+
+                                <p className="stat-number">
+                                    {stats.tickets}
+                                </p>
                             </div>
+
                         </div>
                     )}
 
+                    {/* ACTIONS */}
                     <div className="actions">
+
                         <div className="action-card">
-                            <h2>📅 Événements</h2>
-                            <p>Consultez et gérez les événements du BDE.</p>
-                            <button onClick={() => document.getElementById("events-table")?.scrollIntoView({ behavior: "smooth" })}>
+
+                            <h2>
+                                📅 Événements
+                            </h2>
+
+                            <p>
+                                Consultez et gérez les
+                                événements du BDE.
+                            </p>
+
+                            <button
+                                onClick={() =>
+                                    document
+                                        .getElementById(
+                                            "events-table"
+                                        )
+                                        ?.scrollIntoView({
+                                            behavior: "smooth",
+                                        })
+                                }
+                            >
                                 Gérer les événements
                             </button>
+
                         </div>
 
                         <div className="action-card">
-                            <h2>➕ Nouveau événement</h2>
-                            <p>Ajoutez un nouvel événement pour les étudiants.</p>
-                            <button onClick={openAddForm}>
+
+                            <h2>
+                                ➕ Nouveau événement
+                            </h2>
+
+                            <p>
+                                Ajoutez un nouvel événement
+                                pour les étudiants.
+                            </p>
+
+                            <button
+                                onClick={openAddForm}
+                            >
                                 Ajouter événement
                             </button>
+
                         </div>
+
                     </div>
 
-                    {/* FORMULAIRE (Ajout/Modification) */}
+                    {/* ================= FORM ================= */}
                     {showForm && (
                         <div className="form-container">
-                            <h2>{editingId ? "✏️ Modifier l'événement" : "➕ Ajouter un événement"}</h2>
-                            <form onSubmit={handleSubmit}>
+
+                            <h2>
+                                {editingId
+                                    ? "✏️ Modifier l'événement"
+                                    : "➕ Ajouter un événement"}
+                            </h2>
+
+                            <form
+                                onSubmit={handleSubmit}
+                            >
+
                                 <div className="form-group">
-                                    <label>Titre</label>
-                                    <input type="text" name="title" value={formData.title} onChange={handleInputChange} required />
+
+                                    <label>
+                                        Titre
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        name="title"
+                                        value={
+                                            formData.title
+                                        }
+                                        onChange={
+                                            handleInputChange
+                                        }
+                                        required
+                                    />
+
                                 </div>
+
                                 <div className="form-group">
-                                    <label>Lieu</label>
-                                    <input type="text" name="location" value={formData.location} onChange={handleInputChange} required />
+
+                                    <label>
+                                        Lieu
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        name="location"
+                                        value={
+                                            formData.location
+                                        }
+                                        onChange={
+                                            handleInputChange
+                                        }
+                                        required
+                                    />
+
                                 </div>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
+
+                                <div
+                                    style={{
+                                        display: "grid",
+                                        gridTemplateColumns:
+                                            "1fr 1fr",
+                                        gap: "15px",
+                                    }}
+                                >
+
                                     <div className="form-group">
-                                        <label>Date</label>
-                                        <input type="date" name="date" value={formData.date} onChange={handleInputChange} required />
+
+                                        <label>
+                                            Date
+                                        </label>
+
+                                        <input
+                                            type="date"
+                                            name="date"
+                                            value={
+                                                formData.date
+                                            }
+                                            onChange={
+                                                handleInputChange
+                                            }
+                                            required
+                                        />
+
                                     </div>
+
                                     <div className="form-group">
-                                        <label>Heure</label>
-                                        <input type="time" name="time" value={formData.time} onChange={handleInputChange} required />
+
+                                        <label>
+                                            Heure
+                                        </label>
+
+                                        <input
+                                            type="time"
+                                            name="time"
+                                            value={
+                                                formData.time
+                                            }
+                                            onChange={
+                                                handleInputChange
+                                            }
+                                            required
+                                        />
+
                                     </div>
+
                                 </div>
+
                                 <div className="form-group">
-                                    <label>Prix (DH)</label>
-                                    <input type="number" name="price" value={formData.price} onChange={handleInputChange} required />
+
+                                    <label>
+                                        Prix (DH)
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        name="price"
+                                        min="0"
+                                        value={
+                                            formData.price
+                                        }
+                                        onChange={
+                                            handleInputChange
+                                        }
+                                        required
+                                    />
+
                                 </div>
+
                                 <div className="form-group">
-                                    <label>Capacité Max</label>
-                                    <input type="number" name="max_capacity" value={formData.max_capacity} onChange={handleInputChange} required />
+
+                                    <label>
+                                        Capacité maximale
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        name="max_capacity"
+                                        min="0"
+                                        value={
+                                            formData.max_capacity
+                                        }
+                                        onChange={
+                                            handleInputChange
+                                        }
+                                        required
+                                    />
+
                                 </div>
+
                                 <div className="form-group">
-                                    <label>Description</label>
-                                    <textarea name="description" value={formData.description} onChange={handleInputChange} rows="3"></textarea>
+
+                                    <label>
+                                        Description
+                                    </label>
+
+                                    <textarea
+                                        name="description"
+                                        value={
+                                            formData.description
+                                        }
+                                        onChange={
+                                            handleInputChange
+                                        }
+                                        rows="4"
+                                    />
+
                                 </div>
-                                <div style={{ display: "flex", gap: "10px" }}>
-                                    <button type="submit" style={{ background: "#2563eb", color: "white", padding: "10px 20px", border: "none", borderRadius: "8px", cursor: "pointer" }}>
-                                        {editingId ? "Enregistrer les modifications" : "Créer l'événement"}
+
+                                <div className="form-buttons">
+
+                                    <button
+                                        type="submit"
+                                        className="btn-submit"
+                                    >
+                                        {editingId
+                                            ? "💾 Enregistrer les modifications"
+                                            : "➕ Créer l'événement"}
                                     </button>
-                                    <button type="button" onClick={() => setShowForm(false)} style={{ background: "#6b7280", color: "white", padding: "10px 20px", border: "none", borderRadius: "8px", cursor: "pointer" }}>
+
+                                    <button
+                                        type="button"
+                                        className="btn-cancel"
+                                        onClick={closeForm}
+                                    >
                                         Annuler
                                     </button>
+
                                 </div>
+
                             </form>
+
                         </div>
                     )}
 
-                    {/* TABLEAU DES ÉVÉNEMENTS */}
-                    <div className="table-container" id="events-table">
-                        <h2>📋 Liste des événements</h2>
+                    {/* ================= EVENTS TABLE ================= */}
+                    <div
+                        className="table-container"
+                        id="events-table"
+                    >
+
+                        <h2>
+                            📋 Liste des événements
+                        </h2>
+
                         <table>
+
                             <thead>
+
                                 <tr>
-                                    <th>Titre</th>
-                                    <th>Date & Heure</th>
-                                    <th>Lieu</th>
-                                    <th>Prix</th>
-                                    <th>Actions</th>
+                                    <th>
+                                        Titre
+                                    </th>
+
+                                    <th>
+                                        Date & Heure
+                                    </th>
+
+                                    <th>
+                                        Lieu
+                                    </th>
+
+                                    <th>
+                                        Prix
+                                    </th>
+
+                                    <th>
+                                        Capacité
+                                    </th>
+
+                                    <th>
+                                        Actions
+                                    </th>
                                 </tr>
+
                             </thead>
+
                             <tbody>
-                                {eventsList && eventsList.length > 0 ? (
-                                    eventsList.map((item) => (
-                                        <tr key={item.id}>
-                                            <td>{item.title}</td>
-                                            <td>{item.date || item.event_date} {item.time ? `à ${item.time}` : ''}</td>
-                                            <td>{item.location}</td>
-                                            <td>{item.price ? `${item.price} DH` : "Gratuit"}</td>
-                                            <td>
-                                                <button className="btn-edit" onClick={() => handleEdit(item)}>✏️</button>
-                                                <button className="btn-delete" onClick={() => handleDelete(item.id)}>🗑️</button>
-                                            </td>
-                                        </tr>
-                                    ))
+
+                                {eventsList.length > 0 ? (
+
+                                    eventsList.map(
+                                        (item) => (
+                                            <tr
+                                                key={
+                                                    item.id
+                                                }
+                                            >
+
+                                                <td>
+                                                    {
+                                                        item.title
+                                                    }
+                                                </td>
+
+                                                <td>
+                                                    {item.date ||
+                                                        item.event_date ||
+                                                        "-"}{" "}
+                                                    {item.time ||
+                                                    item.event_time
+                                                        ? `à ${
+                                                              item.time ||
+                                                              item.event_time
+                                                          }`
+                                                        : ""}
+                                                </td>
+
+                                                <td>
+                                                    {
+                                                        item.location
+                                                    }
+                                                </td>
+
+                                                <td>
+                                                    {item.price &&
+                                                    Number(
+                                                        item.price
+                                                    ) > 0
+                                                        ? `${item.price} DH`
+                                                        : "Gratuit"}
+                                                </td>
+
+                                                <td>
+                                                    {item.max_capacity ||
+                                                        item.capacity ||
+                                                        "-"}
+                                                </td>
+
+                                                <td>
+
+                                                    <button
+                                                        className="btn-edit"
+                                                        onClick={() =>
+                                                            handleEdit(
+                                                                item
+                                                            )
+                                                        }
+                                                    >
+                                                        ✏️
+                                                    </button>
+
+                                                    <button
+                                                        className="btn-delete"
+                                                        onClick={() =>
+                                                            handleDelete(
+                                                                item.id
+                                                            )
+                                                        }
+                                                    >
+                                                        🗑️
+                                                    </button>
+
+                                                </td>
+
+                                            </tr>
+                                        )
+                                    )
+
                                 ) : (
+
                                     <tr>
-                                        <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>Aucun événement trouvé</td>
+
+                                        <td
+                                            colSpan="6"
+                                            style={{
+                                                textAlign:
+                                                    "center",
+                                                padding:
+                                                    "25px",
+                                            }}
+                                        >
+                                            Aucun événement
+                                            trouvé
+                                        </td>
+
                                     </tr>
+
                                 )}
+
                             </tbody>
+
                         </table>
+
                     </div>
 
                 </main>

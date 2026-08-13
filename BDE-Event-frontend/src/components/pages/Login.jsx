@@ -26,12 +26,10 @@ function Login() {
                 JSON.stringify(response.data.user)
             );
 
-            const role = response.data.user.role;
-
             if (role === "admin") {
                 navigate("/admin/dashboard");
             } else if (role === "student") {
-                navigate("/dashboard");
+                navigate("/student/dashboard");
             }
         } catch (error) {
             setError(
