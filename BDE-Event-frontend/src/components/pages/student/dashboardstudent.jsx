@@ -47,9 +47,7 @@ function StudentDashboard() {
         }
     };
 
-    // =========================
-    // RESERVATION
-    // =========================
+   
     const handleBooking = async (eventId) => {
         setMessage("");
         setError("");
