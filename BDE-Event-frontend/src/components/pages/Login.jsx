@@ -1,13 +1,12 @@
 import { useState } from "react";
-import api from "./services/api";
 import { useNavigate } from "react-router-dom";
-import "./Login.css";
+import api from "../pages/services/api";
+import "./login.css";
 
 function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
 
     const navigate = useNavigate();
 
@@ -27,15 +26,13 @@ function Login() {
                 JSON.stringify(response.data.user)
             );
 
-            alert("Connexion réussie !");
+            const role = response.data.user.role;
 
-            // Redirection après connexion
-            if (response.data.user?.role === "admin") {
+            if (role === "admin") {
                 navigate("/admin/dashboard");
-            } else {
-                navigate("/student/dashboard");
+            } else if (role === "student") {
+                navigate("/dashboard");
             }
-
         } catch (error) {
             setError(
                 error.response?.data?.message ||
@@ -47,207 +44,130 @@ function Login() {
     return (
         <div className="login-page">
 
-            {/* Partie gauche */}
+            {/* LEFT */}
             <div className="login-left">
-
-                <div className="logo">
-                    <div className="logo-box">B</div>
+                <div className="brand">
+                    <div className="brand-icon">B</div>
                     <span>BDE-Events</span>
                 </div>
 
-                <div className="left-content">
+                <div className="badge">
+                    CAMPUS • EVENTS • EXPERIENCE
+                </div>
 
-                    <span className="tag">
-                        CAMPUS • EVENTS • EXPERIENCE
-                    </span>
+                <h1>
+                    Vivez vos
+                    <br />
+                    événements
+                    <br />
+                    <span>autrement.</span>
+                </h1>
 
-                    <h1>
-                        Vivez vos événements
-                        <span> autrement.</span>
-                    </h1>
+                <p className="description">
+                    Découvrez les événements de votre campus,
+                    réservez votre place et profitez pleinement
+                    de chaque expérience.
+                </p>
 
-                    <p>
-                        Découvrez les événements de votre campus,
-                        réservez votre place et profitez pleinement
-                        de chaque expérience.
-                    </p>
-
-                    <div className="features">
-
-                        <div className="feature">
-                            <div className="feature-icon">🎓</div>
-
-                            <div>
-                                <strong>Événements campus</strong>
-                                <small>
-                                    Découvrez les prochains événements
-                                </small>
-                            </div>
+                <div className="features">
+                    <div className="feature">
+                        <span>🎓</span>
+                        <div>
+                            <strong>Événements campus</strong>
+                            <small>Découvrez les prochains événements</small>
                         </div>
-
-                        <div className="feature">
-                            <div className="feature-icon">🎟️</div>
-
-                            <div>
-                                <strong>Billet numérique</strong>
-                                <small>
-                                    Gardez vos réservations avec vous
-                                </small>
-                            </div>
-                        </div>
-
                     </div>
 
+                    <div className="feature">
+                        <span>🎟️</span>
+                        <div>
+                            <strong>Billet numérique</strong>
+                            <small>Gardez vos réservations avec vous</small>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="copyright">
+                <p className="copyright">
                     © 2026 BDE-Events
-                </div>
-
+                </p>
             </div>
 
-            {/* Partie droite */}
+            {/* RIGHT */}
             <div className="login-right">
+                <div className="login-box">
 
-                <div className="login-card">
-
-                    <div className="mobile-logo">
-                        <div className="logo-box">B</div>
-                        <span>BDE-Events</span>
+                    <div className="welcome">
+                        BIENVENUE 👋
                     </div>
 
-                    <div className="header">
+                    <h2>Connexion</h2>
 
-                        <span className="welcome">
-                            BIENVENUE 👋
-                        </span>
-
-                        <h2>
-                            Connexion
-                        </h2>
-
-                        <p>
-                            Connectez-vous à votre espace étudiant.
-                        </p>
-
-                    </div>
+                    <p className="subtitle">
+                        Connectez-vous à votre espace étudiant.
+                    </p>
 
                     <form onSubmit={handleLogin}>
 
-                        {/* Email */}
-                        <div className="form-group">
+                        <label>Adresse email</label>
 
-                            <label>
-                                Adresse email
-                            </label>
+                        <div className="input-group">
+                            <span>✉️</span>
 
-                            <div className="input-box">
-
-                                <span>✉</span>
-
-                                <input
-                                    type="email"
-                                    placeholder="student@bde.test"
-                                    value={email}
-                                    onChange={(e) =>
-                                        setEmail(e.target.value)
-                                    }
-                                    required
-                                />
-
-                            </div>
-
+                            <input
+                                type="email"
+                                placeholder="Votre adresse email"
+                                value={email}
+                                onChange={(e) =>
+                                    setEmail(e.target.value)
+                                }
+                                required
+                            />
                         </div>
 
-                        {/* Password */}
-                        <div className="form-group">
-
-                            <div className="password-header">
-
-                                <label>
-                                    Mot de passe
-                                </label>
-
-                                <button
-                                    type="button"
-                                    className="forgot"
-                                    onClick={() => {
-                                        // À connecter plus tard
-                                    }}
-                                >
-                                    Mot de passe oublié ?
-                                </button>
-
-                            </div>
-
-                            <div className="input-box">
-
-                                <span>🔒</span>
-
-                                <input
-                                    type={
-                                        showPassword
-                                            ? "text"
-                                            : "password"
-                                    }
-                                    placeholder="••••••••"
-                                    value={password}
-                                    onChange={(e) =>
-                                        setPassword(e.target.value)
-                                    }
-                                    required
-                                />
-
-                                <button
-                                    type="button"
-                                    className="eye"
-                                    onClick={() =>
-                                        setShowPassword(!showPassword)
-                                    }
-                                >
-                                    {showPassword ? "🙈" : "👁"}
-                                </button>
-
-                            </div>
-
+                        <div className="password-label">
+                            <label>Mot de passe</label>
+                            <a href="#">Mot de passe oublié ?</a>
                         </div>
 
-                        {/* Error */}
+                        <div className="input-group">
+                            <span>🔒</span>
+
+                            <input
+                                type="password"
+                                placeholder="Votre mot de passe"
+                                value={password}
+                                onChange={(e) =>
+                                    setPassword(e.target.value)
+                                }
+                                required
+                            />
+                        </div>
+
                         {error && (
-                            <div className="error-message">
-                                <span>!</span>
+                            <p className="login-error">
                                 {error}
-                            </div>
+                            </p>
                         )}
 
-                        {/* Button */}
-                        <button
-                            type="submit"
-                            className="login-button"
-                        >
+                        <button type="submit">
                             Se connecter
                             <span>→</span>
                         </button>
-
                     </form>
 
                     <div className="secure">
-                        🔐 Connexion sécurisée
+                        🔒 Connexion sécurisée
                     </div>
 
-                    <div className="register">
+                    <p className="register">
                         Vous n'avez pas encore de compte ?
-
-                        <button type="button">
-                            Créer un compte
-                        </button>
-                    </div>
+                        <a href="#">Créer un compte</a>
+                    </p>
 
                 </div>
-
             </div>
-
         </div>
     );
 }
+
 export default Login;
