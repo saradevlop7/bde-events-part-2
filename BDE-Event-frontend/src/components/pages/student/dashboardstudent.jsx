@@ -47,7 +47,6 @@ function StudentDashboard() {
         }
     };
 
-   
     const handleBooking = async (eventId) => {
         setMessage("");
         setError("");
